@@ -1,0 +1,190 @@
+--// LocalScript inside StarterGui
+
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+
+-- Utility: get humanoid safely
+local function getHumanoid()
+	local character = player.Character or player.CharacterAdded:Wait()
+	return character:WaitForChild("Humanoid")
+end
+local humanoid = getHumanoid()
+
+-- Defaults
+local DEFAULT_SPEED = 16
+local DEFAULT_JUMP = 50
+local DEFAULT_PANEL_POS = UDim2.new(0.5, -160, 0.5, -100)
+local DEFAULT_BUTTON_POS = UDim2.new(0.05, 0, 0.3, 0)
+
+--// GUI setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AdminPanel"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+--// Draggable Toggle Button
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 80, 0, 40)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+toggleButton.Text = "Admin"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 18
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.AutoButtonColor = true
+toggleButton.Active = true
+toggleButton.Draggable = true
+toggleButton.Parent = screenGui
+
+-- Restore toggle button position
+toggleButton.Position = player:GetAttribute("TogglePos") or DEFAULT_BUTTON_POS
+
+-- Save position on release
+local draggingToggle = false
+toggleButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		draggingToggle = true
+	end
+end)
+toggleButton.InputEnded:Connect(function(input)
+	if draggingToggle then
+		draggingToggle = false
+		player:SetAttribute("TogglePos", toggleButton.Position)
+	end
+end)
+
+--// Main Panel
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 320, 0, 200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+
+-- Restore panel position
+mainFrame.Position = player:GetAttribute("PanelPos") or DEFAULT_PANEL_POS
+
+-- Save panel position on release
+local draggingPanel = false
+mainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		draggingPanel = true
+	end
+end)
+mainFrame.InputEnded:Connect(function(input)
+	if draggingPanel then
+		draggingPanel = false
+		player:SetAttribute("PanelPos", mainFrame.Position)
+	end
+end)
+
+-- Shadow
+local shadow = Instance.new("ImageLabel")
+shadow.Image = "rbxassetid://1316045217"
+shadow.ImageTransparency = 0.6
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+shadow.Size = UDim2.new(1, 20, 1, 20)
+shadow.Position = UDim2.new(0, -10, 0, -10)
+shadow.BackgroundTransparency = 1
+shadow.ZIndex = 0
+shadow.Parent = mainFrame
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+title.Text = "Vex"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.Parent = mainFrame
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+
+--// Slider factory
+local function createSlider(name, min, max, default, yPos, saveAttr, callback)
+	local sliderFrame = Instance.new("Frame")
+	sliderFrame.Size = UDim2.new(1, -40, 0, 60)
+	sliderFrame.Position = UDim2.new(0, 20, 0, yPos)
+	sliderFrame.BackgroundTransparency = 1
+	sliderFrame.Parent = mainFrame
+
+	local label = Instance.new("TextLabel")
+	label.Text = name .. ": " .. default
+	label.Size = UDim2.new(1, 0, 0, 20)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 16
+	label.Parent = sliderFrame
+
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1, 0, 0, 8)
+	bar.Position = UDim2.new(0, 0, 0, 35)
+	bar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	bar.Parent = sliderFrame
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 4)
+
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	fill.Parent = bar
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 4)
+
+	local dragging = false
+	local function update(inputX)
+		local rel = math.clamp((inputX - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+		fill.Size = UDim2.new(rel, 0, 1, 0)
+		local value = math.floor(min + (max - min) * rel)
+		label.Text = name .. ": " .. value
+		player:SetAttribute(saveAttr, value)
+		callback(value)
+	end
+
+	bar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			update(input.Position.X)
+		end
+	end)
+	bar.InputEnded:Connect(function(input)
+		if dragging then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			update(input.Position.X)
+		end
+	end)
+end
+
+--// Load saved values
+local savedSpeed = player:GetAttribute("SavedSpeed") or DEFAULT_SPEED
+local savedJump = player:GetAttribute("SavedJumpPower") or DEFAULT_JUMP
+
+humanoid.WalkSpeed = savedSpeed
+humanoid.JumpPower = savedJump
+
+--// Create sliders
+createSlider("Speed", 16, 200, savedSpeed, 50, "SavedSpeed", function(val)
+	humanoid.WalkSpeed = val
+end)
+createSlider("JumpPower", 50, 300, savedJump, 120, "SavedJumpPower", function(val)
+	humanoid.JumpPower = val
+end)
+
+--// Reapply settings on respawn
+player.CharacterAdded:Connect(function(char)
+	local hum = char:WaitForChild("Humanoid")
+	hum.WalkSpeed = player:GetAttribute("SavedSpeed") or DEFAULT_SPEED
+	hum.JumpPower = player:GetAttribute("SavedJumpPower") or DEFAULT_JUMP
+end)
+
+--// Toggle the panel
+toggleButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+end)
