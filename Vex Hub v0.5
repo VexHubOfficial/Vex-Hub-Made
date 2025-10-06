@@ -1,0 +1,437 @@
+-- Vex Hub Admin Panel: Part 1
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Saved settings
+local savedSettings = {Speed=16, JumpPower=50, PanelOpen=false, TogglePos=UDim2.new(0.05,0,0.3,0), InfiniteJump=false, Highlights=false}
+for k,_ in pairs(savedSettings) do
+	local val = playerGui:GetAttribute(k)
+	if val~=nil then savedSettings[k]=val end
+end
+local function saveSetting(k,v) savedSettings[k]=v; playerGui:SetAttribute(k,v) end
+
+-- Humanoid
+local function getHumanoid()
+	local char = player.Character or player.CharacterAdded:Wait()
+	return char:WaitForChild("Humanoid")
+end
+local humanoid = getHumanoid()
+humanoid.WalkSpeed = savedSettings.Speed
+humanoid.JumpPower = savedSettings.JumpPower
+
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "VexHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Draggable toggle button
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0,80,0,40)
+toggleButton.Position = savedSettings.TogglePos
+toggleButton.BackgroundColor3 = Color3.fromRGB(128,0,128)
+toggleButton.Text = "Vex"
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 18
+toggleButton.Active = true
+toggleButton.Draggable = true
+toggleButton.Parent = screenGui
+Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0,10)
+toggleButton.BackgroundTransparency = 0.6
+toggleButton.TextTransparency = 0.3
+toggleButton.MouseEnter:Connect(function() toggleButton.BackgroundTransparency=0 toggleButton.TextTransparency=0 end)
+toggleButton.MouseLeave:Connect(function() toggleButton.BackgroundTransparency=0.6 toggleButton.TextTransparency=0.3 end)
+
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0,340,0,400)
+mainFrame.Position = UDim2.new(0.5,-170,0.5,-200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40,0,40)
+mainFrame.Visible = savedSettings.PanelOpen
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,12)
+
+toggleButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+	saveSetting("PanelOpen", mainFrame.Visible)
+end)
+toggleButton:GetPropertyChangedSignal("Position"):Connect(function() saveSetting("TogglePos", toggleButton.Position) end)
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,35)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundColor3 = Color3.fromRGB(60,0,60)
+title.Text = "Vex Hub"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.Parent = mainFrame
+Instance.new("UICorner", title).CornerRadius = UDim.new(0,12)
+
+-- Tab bar
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1,0,0,35)
+tabBar.Position = UDim2.new(0,0,0,35)
+tabBar.BackgroundTransparency = 1
+tabBar.Parent = mainFrame
+
+local function createTabButton(name, xPos)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0,80,1,0)
+	btn.Position = UDim2.new(0,xPos,0,0)
+	btn.BackgroundColor3 = Color3.fromRGB(80,0,80)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Text = name
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 16
+	btn.Parent = tabBar
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+	return btn
+end
+
+local movementTabBtn = createTabButton("Movement",0)
+local visualsTabBtn = createTabButton("Visuals",90)
+local emotesTabBtn = createTabButton("Emotes",180)
+local playersTabBtn = createTabButton("Players",270)
+
+local function createTabFrame()
+	local f = Instance.new("Frame")
+	f.Size = UDim2.new(1,-20,1,-75)
+	f.Position = UDim2.new(0,10,0,75)
+	f.BackgroundTransparency = 1
+	f.Parent = mainFrame
+	return f
+end
+
+local movementFrame, visualsFrame, emotesFrame, playersFrame = createTabFrame(), createTabFrame(), createTabFrame(), createTabFrame()
+
+local function showTab(tab)
+	movementFrame.Visible = (tab=="Movement")
+	visualsFrame.Visible = (tab=="Visuals")
+	emotesFrame.Visible = (tab=="Emotes")
+	playersFrame.Visible = (tab=="Players")
+end
+
+movementTabBtn.MouseButton1Click:Connect(function() showTab("Movement") end)
+visualsTabBtn.MouseButton1Click:Connect(function() showTab("Visuals") end)
+emotesTabBtn.MouseButton1Click:Connect(function() showTab("Emotes") end)
+playersTabBtn.MouseButton1Click:Connect(function() showTab("Players") end)
+showTab("Movement")
+
+-- Slider helper
+local function createSlider(parent,name,min,max,default,yPos,callback)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1,0,0,60)
+	frame.Position = UDim2.new(0,0,0,yPos)
+	frame.BackgroundTransparency=1
+	frame.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1,0,0,20)
+	label.Position = UDim2.new(0,0,0,0)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1,1,1)
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 16
+	label.Text = name..": "..default
+	label.Parent = frame
+
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1,0,0,8)
+	bar.Position = UDim2.new(0,0,0,35)
+	bar.BackgroundColor3 = Color3.fromRGB(80,0,80)
+	bar.Parent = frame
+	Instance.new("UICorner",bar).CornerRadius = UDim.new(0,4)
+
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new((default-min)/(max-min),0,1,0)
+	fill.BackgroundColor3 = Color3.fromRGB(200,0,200)
+	fill.Parent = bar
+	Instance.new("UICorner",fill).CornerRadius = UDim.new(0,4)
+
+	local dragging=false
+	local function update(x)
+		local rel = math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+		fill.Size = UDim2.new(rel,0,1,0)
+		local val = math.floor(min+(max-min)*rel)
+		label.Text = name..": "..val
+		callback(val)
+	end
+
+	bar.InputBegan:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+			dragging=true
+			update(input.Position.X)
+		end
+	end)
+	bar.InputEnded:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=false end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then update(input.Position.X) end
+	end)
+end
+
+-- Movement sliders
+createSlider(movementFrame,"Speed",16,200,savedSettings.Speed,0,function(v) humanoid.WalkSpeed=v end)
+createSlider(movementFrame,"JumpPower",50,300,savedSettings.JumpPower,70,function(v) humanoid.JumpPower=v end)
+
+-- Infinite Jump Button
+local infJumpBtn = Instance.new("TextButton")
+infJumpBtn.Size = UDim2.new(0,200,0,35)
+infJumpBtn.Position = UDim2.new(0,70,0,150)
+infJumpBtn.BackgroundColor3 = Color3.fromRGB(128,0,128)
+infJumpBtn.TextColor3 = Color3.new(1,1,1)
+infJumpBtn.Font = Enum.Font.GothamBold
+infJumpBtn.TextSize = 16
+infJumpBtn.Text = savedSettings.InfiniteJump and "Disable Infinite Jump" or "Enable Infinite Jump"
+Instance.new("UICorner", infJumpBtn).CornerRadius = UDim.new(0,8)
+infJumpBtn.Parent = movementFrame
+
+local infiniteJumpEnabled = savedSettings.InfiniteJump
+infJumpBtn.MouseButton1Click:Connect(function()
+	infiniteJumpEnabled = not infiniteJumpEnabled
+	infJumpBtn.Text = infiniteJumpEnabled and "Disable Infinite Jump" or "Enable Infinite Jump"
+	saveSetting("InfiniteJump", infiniteJumpEnabled)
+end)
+UserInputService.JumpRequest:Connect(function()
+	if infiniteJumpEnabled then
+		local char = player.Character
+		if char and char:FindFirstChild("Humanoid") then
+			char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+		end
+	end
+end)
+
+-- Vex Hub Admin Panel: Part 2 (Visuals + Emotes)
+
+-- === Visuals Tab ===
+local highlightBtn = Instance.new("TextButton")
+highlightBtn.Size = UDim2.new(0,200,0,35)
+highlightBtn.Position = UDim2.new(0,70,0,20)
+highlightBtn.BackgroundColor3 = Color3.fromRGB(128,0,128)
+highlightBtn.TextColor3 = Color3.new(1,1,1)
+highlightBtn.Font = Enum.Font.GothamBold
+highlightBtn.TextSize = 16
+highlightBtn.Text = savedSettings.Highlights and "Hide Highlights" or "Show Highlights"
+Instance.new("UICorner", highlightBtn).CornerRadius = UDim.new(0,8)
+highlightBtn.Parent = visualsFrame
+
+local highlightsEnabled = savedSettings.Highlights
+
+local function updateHighlights()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character then
+			local char = plr.Character
+			local existing = char:FindFirstChild("RoleHighlight")
+			if highlightsEnabled then
+				if not existing then
+					local h = Instance.new("Highlight")
+					h.Name = "RoleHighlight"
+					h.FillTransparency = 1
+					h.OutlineTransparency = 0
+					h.OutlineColor = plr.TeamColor.Color
+					h.Parent = char
+				end
+			elseif existing then
+				existing:Destroy()
+			end
+		end
+	end
+end
+
+highlightBtn.MouseButton1Click:Connect(function()
+	highlightsEnabled = not highlightsEnabled
+	saveSetting("Highlights", highlightsEnabled)
+	highlightBtn.Text = highlightsEnabled and "Hide Highlights" or "Show Highlights"
+	updateHighlights()
+end)
+
+Players.PlayerAdded:Connect(updateHighlights)
+Players.PlayerRemoving:Connect(updateHighlights)
+updateHighlights()
+
+-- === Emotes Tab ===
+local emotesScrolling = Instance.new("ScrollingFrame")
+emotesScrolling.Size = UDim2.new(1,-20,1,-20)
+emotesScrolling.Position = UDim2.new(0,10,0,10)
+emotesScrolling.BackgroundTransparency = 1
+emotesScrolling.ScrollBarThickness = 8
+emotesScrolling.Parent = emotesFrame
+
+-- Example emotes (replace with your AnimationIds if you have them)
+local emotes = {"Wave","Dance","Laugh"}
+for i,emo in ipairs(emotes) do
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1,-20,0,40)
+	btn.Position = UDim2.new(0,10,0,(i-1)*50)
+	btn.BackgroundColor3 = Color3.fromRGB(128,0,128)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 16
+	btn.Text = emo
+	btn.Parent = emotesScrolling
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+	btn.MouseButton1Click:Connect(function()
+		-- Placeholder: trigger emote animation
+		print("Emote triggered:", emo)
+	end)
+end
+
+emotesScrolling.CanvasSize = UDim2.new(0,0,#emotes*50)
+
+-- Vex Hub Admin Panel: Part 3 (Players tab)
+
+-- Players tab scrolling frame
+local playersScrolling = Instance.new("ScrollingFrame")
+playersScrolling.Size = UDim2.new(1,-20,1,-20)
+playersScrolling.Position = UDim2.new(0,10,0,10)
+playersScrolling.BackgroundTransparency = 1
+playersScrolling.ScrollBarThickness = 8
+playersScrolling.Parent = playersFrame
+
+-- Inventory popup
+local inventoryPopup = Instance.new("Frame")
+inventoryPopup.Size = UDim2.new(0,220,0,300)
+inventoryPopup.Position = UDim2.new(0.5,-110,0.5,-150)
+inventoryPopup.BackgroundColor3 = Color3.fromRGB(50,0,50)
+inventoryPopup.Visible = false
+inventoryPopup.Parent = screenGui
+Instance.new("UICorner", inventoryPopup).CornerRadius = UDim.new(0,12)
+
+-- Inventory title
+local titleInv = Instance.new("TextLabel")
+titleInv.Size = UDim2.new(1,0,0,30)
+titleInv.Position = UDim2.new(0,0,0,0)
+titleInv.BackgroundColor3 = Color3.fromRGB(80,0,80)
+titleInv.TextColor3 = Color3.new(1,1,1)
+titleInv.Font = Enum.Font.GothamBold
+titleInv.TextSize = 18
+titleInv.Text = "Inventory"
+titleInv.Parent = inventoryPopup
+Instance.new("UICorner", titleInv).CornerRadius = UDim.new(0,12)
+
+-- Close inventory button
+local closeInv = Instance.new("TextButton")
+closeInv.Size = UDim2.new(0,30,0,30)
+closeInv.Position = UDim2.new(1,-35,0,0)
+closeInv.BackgroundColor3 = Color3.fromRGB(128,0,128)
+closeInv.TextColor3 = Color3.new(1,1,1)
+closeInv.Text = "X"
+closeInv.Font = Enum.Font.GothamBold
+closeInv.TextSize = 18
+closeInv.Parent = inventoryPopup
+Instance.new("UICorner", closeInv).CornerRadius = UDim.new(0,6)
+closeInv.MouseButton1Click:Connect(function()
+	inventoryPopup.Visible = false
+	for _,c in ipairs(inventoryPopup:GetChildren()) do
+		if c:IsA("ScrollingFrame") then c:Destroy() end
+	end
+end)
+
+-- Show inventory of a player
+local function showInventory(plr)
+	inventoryPopup.Visible = true
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Size = UDim2.new(1,-20,1,-50)
+	scroll.Position = UDim2.new(0,10,0,40)
+	scroll.BackgroundTransparency = 1
+	scroll.ScrollBarThickness = 8
+	scroll.CanvasSize = UDim2.new(0,0,0,0)
+	scroll.Parent = inventoryPopup
+
+	local yPos = 0
+	if plr:FindFirstChild("Backpack") then
+		for _,item in ipairs(plr.Backpack:GetChildren()) do
+			local itemLabel = Instance.new("TextLabel")
+			itemLabel.Size = UDim2.new(1,0,0,30)
+			itemLabel.Position = UDim2.new(0,0,0,yPos)
+			itemLabel.BackgroundColor3 = Color3.fromRGB(128,0,128)
+			itemLabel.TextColor3 = Color3.new(1,1,1)
+			itemLabel.Text = item.Name
+			itemLabel.Font = Enum.Font.Gotham
+			itemLabel.TextSize = 16
+			itemLabel.Parent = scroll
+			Instance.new("UICorner", itemLabel).CornerRadius = UDim.new(0,6)
+			yPos = yPos + 35
+		end
+	end
+	scroll.CanvasSize = UDim2.new(0,0,yPos)
+end
+
+-- Populate player list
+local function updatePlayerList()
+	for _,c in ipairs(playersScrolling:GetChildren()) do
+		if c:IsA("Frame") then c:Destroy() end
+	end
+
+	local yPos = 0
+	for _,plr in ipairs(Players:GetPlayers()) do
+		local lineFrame = Instance.new("Frame")
+		lineFrame.Size = UDim2.new(1,0,0,60)
+		lineFrame.Position = UDim2.new(0,0,0,yPos)
+		lineFrame.BackgroundColor3 = Color3.fromRGB(50,0,50)
+		lineFrame.Parent = playersScrolling
+		Instance.new("UICorner", lineFrame).CornerRadius = UDim.new(0,6)
+
+		-- Name label
+		local nameLbl = Instance.new("TextLabel")
+		nameLbl.Size = UDim2.new(0.5,0,1,0)
+		nameLbl.Position = UDim2.new(0,10,0,0)
+		nameLbl.BackgroundTransparency = 1
+		nameLbl.Text = plr.Name
+		nameLbl.TextColor3 = Color3.new(1,1,1)
+		nameLbl.Font = Enum.Font.Gotham
+		nameLbl.TextSize = 16
+		nameLbl.Parent = lineFrame
+
+		-- Teleport button
+		local tpBtn = Instance.new("TextButton")
+		tpBtn.Size = UDim2.new(0.2,0,0.4,0)
+		tpBtn.Position = UDim2.new(0.65,0,0.1,0)
+		tpBtn.BackgroundColor3 = Color3.fromRGB(128,0,128)
+		tpBtn.TextColor3 = Color3.new(1,1,1)
+		tpBtn.Font = Enum.Font.GothamBold
+		tpBtn.TextSize = 14
+		tpBtn.Text = "TP"
+		tpBtn.Parent = lineFrame
+		Instance.new("UICorner", tpBtn).CornerRadius = UDim.new(0,6)
+		tpBtn.MouseButton1Click:Connect(function()
+			local char = plr.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				player.Character:SetPrimaryPartCFrame(char.HumanoidRootPart.CFrame + Vector3.new(2,0,0))
+			end
+		end)
+
+		-- Inventory button
+		local invBtn = Instance.new("TextButton")
+		invBtn.Size = UDim2.new(0.2,0,0.4,0)
+		invBtn.Position = UDim2.new(0.85,0,0.1,0)
+		invBtn.BackgroundColor3 = Color3.fromRGB(128,0,128)
+		invBtn.TextColor3 = Color3.new(1,1,1)
+		invBtn.Font = Enum.Font.GothamBold
+		invBtn.TextSize = 14
+		invBtn.Text = "Inv"
+		invBtn.Parent = lineFrame
+		Instance.new("UICorner", invBtn).CornerRadius = UDim.new(0,6)
+		invBtn.MouseButton1Click:Connect(function()
+			showInventory(plr)
+		end)
+
+		yPos = yPos + 65
+	end
+	playersScrolling.CanvasSize = UDim2.new(0,0,yPos)
+end
+
+-- Update player list when players join/leave
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+updatePlayerList()
