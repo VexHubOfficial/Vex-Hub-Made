@@ -1,0 +1,218 @@
+--// LocalScript inside StarterGui
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Saved settings
+local savedSettings = {
+	Speed = 16,
+	JumpPower = 50,
+	PanelOpen = false,
+	PanelPos = UDim2.new(0.5, -160, 0.5, -140),
+	TogglePos = UDim2.new(0.05, 0, 0.3, 0),
+	InfiniteJump = false,
+	Highlights = false
+}
+
+-- Load saved attributes
+for key in pairs(savedSettings) do
+	local val = playerGui:GetAttribute(key)
+	if val ~= nil then
+		savedSettings[key] = val
+	end
+end
+
+local function saveSetting(key, val)
+	savedSettings[key] = val
+	playerGui:SetAttribute(key, val)
+end
+
+-- Humanoid helper
+local function getHumanoid()
+	local char = player.Character or player.CharacterAdded:Wait()
+	return char:WaitForChild("Humanoid")
+end
+local humanoid = getHumanoid()
+humanoid.WalkSpeed = savedSettings.Speed
+humanoid.JumpPower = savedSettings.JumpPower
+
+-- GUI container
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "VexHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Toggle button (draggable)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 80, 0, 40)
+toggleButton.Position = savedSettings.TogglePos
+toggleButton.BackgroundColor3 = Color3.fromRGB(128, 0, 128)
+toggleButton.Text = "Vex"
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 18
+toggleButton.AutoButtonColor = true
+toggleButton.Active = true
+toggleButton.Draggable = true
+toggleButton.Parent = screenGui
+Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 10)
+toggleButton.BackgroundTransparency = 0.6
+toggleButton.TextTransparency = 0.3
+
+toggleButton.MouseEnter:Connect(function()
+	toggleButton.BackgroundTransparency = 0
+	toggleButton.TextTransparency = 0
+end)
+toggleButton.MouseLeave:Connect(function()
+	toggleButton.BackgroundTransparency = 0.6
+	toggleButton.TextTransparency = 0.3
+end)
+toggleButton.MouseButton1Down:Connect(function()
+	toggleButton.BackgroundTransparency = 0
+	toggleButton.TextTransparency = 0
+end)
+toggleButton.MouseButton1Up:Connect(function()
+	toggleButton.BackgroundTransparency = 0.6
+	toggleButton.TextTransparency = 0.3
+end)
+
+toggleButton:GetPropertyChangedSignal("Position"):Connect(function()
+	saveSetting("TogglePos", toggleButton.Position)
+end)
+
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 320, 0, 280)
+mainFrame.Position = savedSettings.PanelPos
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 0, 40)
+mainFrame.Visible = savedSettings.PanelOpen
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+mainFrame:GetPropertyChangedSignal("Position"):Connect(function()
+	saveSetting("PanelPos", mainFrame.Position)
+end)
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(60, 0, 60)
+title.Text = "Vex Hub"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.Parent = mainFrame
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+
+-- Tabs
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1, 0, 0, 35)
+tabBar.Position = UDim2.new(0, 0, 0, 35)
+tabBar.BackgroundTransparency = 1
+tabBar.Parent = mainFrame
+
+local function createTabButton(name, xPos)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 100, 1, 0)
+	btn.Position = UDim2.new(0, xPos, 0, 0)
+	btn.BackgroundColor3 = Color3.fromRGB(80,0,80)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Text = name
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 16
+	btn.Parent = tabBar
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+	return btn
+end
+
+local movementTabBtn = createTabButton("Movement", 0)
+local visualsTabBtn = createTabButton("Visuals", 110)
+local emotesTabBtn = createTabButton("Emotes", 220)
+
+-- Tab frames
+local movementFrame = Instance.new("Frame")
+movementFrame.Size = UDim2.new(1, -20, 1, -75)
+movementFrame.Position = UDim2.new(0, 10, 0, 75)
+movementFrame.BackgroundTransparency = 1
+movementFrame.Parent = mainFrame
+
+local visualsFrame = movementFrame:Clone()
+visualsFrame.Parent = mainFrame
+visualsFrame.Visible = false
+
+local emotesFrame = movementFrame:Clone()
+emotesFrame.Parent = mainFrame
+emotesFrame.Visible = false
+
+-- Tab switching
+local function showTab(tab)
+	movementFrame.Visible = (tab == "Movement")
+	visualsFrame.Visible = (tab == "Visuals")
+	emotesFrame.Visible = (tab == "Emotes")
+end
+
+movementTabBtn.MouseButton1Click:Connect(function() showTab("Movement") end)
+visualsTabBtn.MouseButton1Click:Connect(function() showTab("Visuals") end)
+emotesTabBtn.MouseButton1Click:Connect(function() showTab("Emotes") end)
+
+showTab("Movement") -- default
+
+-- Slider helper
+local function createSlider(parent, name, min, max, default, yPos, callback)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, 0, 0, 60)
+	frame.Position = UDim2.new(0, 0, 0, yPos)
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 20)
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1,1,1)
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 16
+	label.Text = name .. ": " .. default
+	label.Parent = frame
+
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1, 0, 0, 8)
+	bar.Position = UDim2.new(0, 0, 0, 35)
+	bar.BackgroundColor3 = Color3.fromRGB(80,0,80)
+	bar.Parent = frame
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 4)
+
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new((default - min)/(max-min), 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(200,0,200)
+	fill.Parent = bar
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 4)
+
+	local dragging = false
+	local function update(x)
+		local rel = math.clamp((x - bar.AbsolutePosition.X)/bar.AbsoluteSize.X, 0, 1)
+		fill.Size = UDim2.new(rel,0,1,0)
+		local val = math.floor(min + (max-min)*rel)
+		label.Text = name..": "..val
+		callback(val)
+	end
+
+	bar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			update(input.Position.X)
+		end
+	end)
+	bar.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			update(input.Position.X)
+		end
+	end
