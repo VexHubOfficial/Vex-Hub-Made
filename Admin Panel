@@ -1,131 +1,138 @@
 --// LocalScript inside StarterGui
 
-local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Utility: get humanoid safely
+--// Local saved settings
+local savedSettings = {
+	Speed = 16,
+	JumpPower = 50,
+	PanelOpen = false,
+	PanelPos = UDim2.new(0.5, -160, 0.5, -120),
+	TogglePos = UDim2.new(0.05, 0, 0.3, 0)
+}
+
+-- Load saved attributes if they exist
+for key in pairs(savedSettings) do
+	local val = playerGui:GetAttribute(key)
+	if val ~= nil then
+		savedSettings[key] = val
+	end
+end
+
+local function saveSetting(key, val)
+	savedSettings[key] = val
+	playerGui:SetAttribute(key, val)
+end
+
+--// Humanoid
 local function getHumanoid()
-	local character = player.Character or player.CharacterAdded:Wait()
-	return character:WaitForChild("Humanoid")
+	local char = player.Character or player.CharacterAdded:Wait()
+	return char:WaitForChild("Humanoid")
 end
 local humanoid = getHumanoid()
+humanoid.WalkSpeed = savedSettings.Speed
+humanoid.JumpPower = savedSettings.JumpPower
 
--- Defaults
-local DEFAULT_SPEED = 16
-local DEFAULT_JUMP = 50
-local DEFAULT_PANEL_POS = UDim2.new(0.5, -160, 0.5, -100)
-local DEFAULT_BUTTON_POS = UDim2.new(0.05, 0, 0.3, 0)
-
---// GUI setup
+--// GUI Setup
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AdminPanel"
+screenGui.Name = "Vex Hub"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
---// Draggable Toggle Button
+--// Draggable toggle button (semi-transparent idle)
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(0, 80, 0, 40)
+toggleButton.Position = savedSettings.TogglePos
 toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-toggleButton.Text = "Admin"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextSize = 18
+toggleButton.Text = "Vex Hub"
+toggleButton.TextColor3 = Color3.new(1,1,1)
 toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 18
 toggleButton.AutoButtonColor = true
 toggleButton.Active = true
 toggleButton.Draggable = true
 toggleButton.Parent = screenGui
+Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 10)
 
--- Restore toggle button position
-toggleButton.Position = player:GetAttribute("TogglePos") or DEFAULT_BUTTON_POS
+-- Idle transparency
+toggleButton.BackgroundTransparency = 0.6
+toggleButton.TextTransparency = 0.3
 
--- Save position on release
-local draggingToggle = false
-toggleButton.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		draggingToggle = true
-	end
+-- On hover / pressed → fully visible
+toggleButton.MouseEnter:Connect(function()
+	toggleButton.BackgroundTransparency = 0
+	toggleButton.TextTransparency = 0
 end)
-toggleButton.InputEnded:Connect(function(input)
-	if draggingToggle then
-		draggingToggle = false
-		player:SetAttribute("TogglePos", toggleButton.Position)
-	end
+toggleButton.MouseLeave:Connect(function()
+	toggleButton.BackgroundTransparency = 0.6
+	toggleButton.TextTransparency = 0.3
+end)
+toggleButton.MouseButton1Down:Connect(function()
+	toggleButton.BackgroundTransparency = 0
+	toggleButton.TextTransparency = 0
+end)
+toggleButton.MouseButton1Up:Connect(function()
+	toggleButton.BackgroundTransparency = 0.6
+	toggleButton.TextTransparency = 0.3
 end)
 
---// Main Panel
+-- Save button position when moved
+toggleButton:GetPropertyChangedSignal("Position"):Connect(function()
+	saveSetting("TogglePos", toggleButton.Position)
+end)
+
+--// Main panel
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 200)
+mainFrame.Size = UDim2.new(0, 320, 0, 240)
+mainFrame.Position = savedSettings.PanelPos
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.Visible = savedSettings.PanelOpen
 mainFrame.Active = true
 mainFrame.Draggable = true
-mainFrame.Visible = false
 mainFrame.Parent = screenGui
-
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 
--- Restore panel position
-mainFrame.Position = player:GetAttribute("PanelPos") or DEFAULT_PANEL_POS
-
--- Save panel position on release
-local draggingPanel = false
-mainFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		draggingPanel = true
-	end
+-- Save frame position when moved
+mainFrame:GetPropertyChangedSignal("Position"):Connect(function()
+	saveSetting("PanelPos", mainFrame.Position)
 end)
-mainFrame.InputEnded:Connect(function(input)
-	if draggingPanel then
-		draggingPanel = false
-		player:SetAttribute("PanelPos", mainFrame.Position)
-	end
-end)
-
--- Shadow
-local shadow = Instance.new("ImageLabel")
-shadow.Image = "rbxassetid://1316045217"
-shadow.ImageTransparency = 0.6
-shadow.ScaleType = Enum.ScaleType.Slice
-shadow.SliceCenter = Rect.new(10, 10, 118, 118)
-shadow.Size = UDim2.new(1, 20, 1, 20)
-shadow.Position = UDim2.new(0, -10, 0, -10)
-shadow.BackgroundTransparency = 1
-shadow.ZIndex = 0
-shadow.Parent = mainFrame
 
 -- Title
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 35)
 title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-title.Text = "Vex"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Text = "Vex Hub"
+title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 20
 title.Parent = mainFrame
 Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
---// Slider factory
-local function createSlider(name, min, max, default, yPos, saveAttr, callback)
-	local sliderFrame = Instance.new("Frame")
-	sliderFrame.Size = UDim2.new(1, -40, 0, 60)
-	sliderFrame.Position = UDim2.new(0, 20, 0, yPos)
-	sliderFrame.BackgroundTransparency = 1
-	sliderFrame.Parent = mainFrame
+-- Slider factory
+local function createSlider(name, min, max, default, yPos, callback, saveKey)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, -40, 0, 60)
+	frame.Position = UDim2.new(0, 20, 0, yPos)
+	frame.BackgroundTransparency = 1
+	frame.Parent = mainFrame
 
 	local label = Instance.new("TextLabel")
 	label.Text = name .. ": " .. default
 	label.Size = UDim2.new(1, 0, 0, 20)
 	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextColor3 = Color3.new(1,1,1)
 	label.Font = Enum.Font.Gotham
 	label.TextSize = 16
-	label.Parent = sliderFrame
+	label.Parent = frame
 
 	local bar = Instance.new("Frame")
 	bar.Size = UDim2.new(1, 0, 0, 8)
 	bar.Position = UDim2.new(0, 0, 0, 35)
 	bar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-	bar.Parent = sliderFrame
+	bar.Parent = frame
 	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 4)
 
 	local fill = Instance.new("Frame")
@@ -135,13 +142,13 @@ local function createSlider(name, min, max, default, yPos, saveAttr, callback)
 	Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 4)
 
 	local dragging = false
-	local function update(inputX)
-		local rel = math.clamp((inputX - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+	local function update(x)
+		local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
 		fill.Size = UDim2.new(rel, 0, 1, 0)
-		local value = math.floor(min + (max - min) * rel)
-		label.Text = name .. ": " .. value
-		player:SetAttribute(saveAttr, value)
-		callback(value)
+		local val = math.floor(min + (max - min) * rel)
+		label.Text = name .. ": " .. val
+		callback(val)
+		if saveKey then saveSetting(saveKey, val) end
 	end
 
 	bar.InputBegan:Connect(function(input)
@@ -151,7 +158,7 @@ local function createSlider(name, min, max, default, yPos, saveAttr, callback)
 		end
 	end)
 	bar.InputEnded:Connect(function(input)
-		if dragging then
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = false
 		end
 	end)
@@ -162,29 +169,59 @@ local function createSlider(name, min, max, default, yPos, saveAttr, callback)
 	end)
 end
 
---// Load saved values
-local savedSpeed = player:GetAttribute("SavedSpeed") or DEFAULT_SPEED
-local savedJump = player:GetAttribute("SavedJumpPower") or DEFAULT_JUMP
+-- Sliders
+createSlider("Speed", 16, 200, savedSettings.Speed, 50, function(v)
+	humanoid.WalkSpeed = v
+end, "Speed")
 
-humanoid.WalkSpeed = savedSpeed
-humanoid.JumpPower = savedJump
+createSlider("JumpPower", 50, 300, savedSettings.JumpPower, 120, function(v)
+	humanoid.JumpPower = v
+end, "JumpPower")
 
---// Create sliders
-createSlider("Speed", 16, 200, savedSpeed, 50, "SavedSpeed", function(val)
-	humanoid.WalkSpeed = val
+-- Highlight toggle button
+local highlightButton = Instance.new("TextButton")
+highlightButton.Size = UDim2.new(0, 140, 0, 35)
+highlightButton.Position = UDim2.new(0, 90, 0, 190)
+highlightButton.Text = "Show Highlights"
+highlightButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+highlightButton.TextColor3 = Color3.new(1,1,1)
+highlightButton.Font = Enum.Font.GothamBold
+highlightButton.TextSize = 16
+Instance.new("UICorner", highlightButton).CornerRadius = UDim.new(0, 8)
+highlightButton.Parent = mainFrame
+
+local highlightsEnabled = false
+highlightButton.MouseButton1Click:Connect(function()
+	highlightsEnabled = not highlightsEnabled
+	highlightButton.Text = highlightsEnabled and "Hide Highlights" or "Show Highlights"
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character then
+			local char = plr.Character
+			local existing = char:FindFirstChildOfClass("Highlight")
+			if highlightsEnabled then
+				if not existing then
+					local h = Instance.new("Highlight")
+					h.Name = "RoleHighlight"
+					h.FillTransparency = 1
+					h.OutlineTransparency = 0
+					h.OutlineColor = plr:GetAttribute("RoleColor") or plr.TeamColor.Color
+					h.Parent = char
+				end
+			elseif existing then
+				existing:Destroy()
+			end
+		end
+	end
 end)
-createSlider("JumpPower", 50, 300, savedJump, 120, "SavedJumpPower", function(val)
-	humanoid.JumpPower = val
-end)
 
---// Reapply settings on respawn
-player.CharacterAdded:Connect(function(char)
-	local hum = char:WaitForChild("Humanoid")
-	hum.WalkSpeed = player:GetAttribute("SavedSpeed") or DEFAULT_SPEED
-	hum.JumpPower = player:GetAttribute("SavedJumpPower") or DEFAULT_JUMP
-end)
-
---// Toggle the panel
+-- Toggle panel visibility via draggable button
 toggleButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
+	saveSetting("PanelOpen", mainFrame.Visible)
 end)
+
+-- Keep sliders applied on respawn
+player.CharacterAdded:Connect(function(char)
+	humanoid = char:WaitForChild("Humanoid")
+	humanoid.W
