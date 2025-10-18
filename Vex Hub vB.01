@@ -1,4 +1,4 @@
--- Vex Hub by Vex Dev & Creator
+-- Vex Hub By Vex Dev & Creator
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -33,12 +33,10 @@ toggleButton.Draggable = true
 -- ======= Main Panel =======
 local panel = Instance.new("Frame")
 panel.Size = UDim2.new(0,600,0,400)
-panel.Position = UDim2.new(0,150,0,100)
+panel.Position = UDim2.new(0.5,-300,0.5,-200) -- centered
 panel.BackgroundColor3 = Color3.fromRGB(152,3,252)
 panel.BackgroundTransparency = 0.5
 panel.Parent = screenGui
-panel.Active = true
-panel.Draggable = false -- header drag only
 
 -- ======= Header =======
 local header = Instance.new("Frame")
@@ -46,8 +44,6 @@ header.Size = UDim2.new(1,0,0,40)
 header.Position = UDim2.new(0,0,0,0)
 header.BackgroundColor3 = Color3.fromRGB(120,0,220)
 header.Parent = panel
-header.Active = true
-header.Draggable = true
 
 local headerText = Instance.new("TextLabel")
 headerText.Size = UDim2.new(1,-60,0,20)
@@ -76,11 +72,11 @@ leftPanel.BackgroundColor3 = Color3.fromRGB(130,0,230)
 leftPanel.BackgroundTransparency = 0.5
 leftPanel.Parent = panel
 
--- Info Bar (top of left panel)
+-- Info Bar (next to tabs)
 local infoBar = Instance.new("TextLabel")
 infoBar.Size = UDim2.new(1,0,0,50)
 infoBar.Position = UDim2.new(0,0,0,0)
-infoBar.Text = "Info Bar"
+infoBar.Text = "Info"
 infoBar.TextColor3 = Color3.new(1,1,1)
 infoBar.BackgroundColor3 = Color3.fromRGB(100,0,200)
 infoBar.Parent = leftPanel
@@ -109,13 +105,12 @@ local settingsTabBtn = createTabButton("Settings",90)
 
 -- ======= Content Area =======
 local contentArea = Instance.new("Frame")
-contentArea.Size = UDim2.new(1, -150, 1, -40)
+contentArea.Size = UDim2.new(1,-150,1,-40)
 contentArea.Position = UDim2.new(0,150,0,40)
 contentArea.BackgroundColor3 = Color3.fromRGB(152,3,252)
 contentArea.BackgroundTransparency = 0.5
 contentArea.Parent = panel
 
--- Movement, Players, Settings frames
 local function createContentFrame()
     local f = Instance.new("Frame")
     f.Size = UDim2.new(1,0,1,0)
@@ -164,15 +159,16 @@ settingsTabBtn.MouseButton1Click:Connect(function()
     highlightTab(settingsTabBtn)
 end)
 
--- ======= Movement Tab Content =======
--- Speed/Jump controls
+-- ======= Movement Tab =======
 local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-local currentSpeed = humanoid and humanoid.WalkSpeed or 16
-local currentJump = humanoid and humanoid.JumpPower or 50
+local defaultSpeed = 16
+local defaultJump = 50
+local currentSpeed = humanoid and humanoid.WalkSpeed or defaultSpeed
+local currentJump = humanoid and humanoid.JumpPower or defaultJump
 local infEnabled = false
 local noclipEnabled = false
 
-local function createStatControl(parent,name,posY,callback)
+local function createStatControl(parent,name,posY,getValue,setValue,default)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(0,50,0,20)
     label.Position = UDim2.new(0,10,0,posY)
@@ -181,9 +177,17 @@ local function createStatControl(parent,name,posY,callback)
     label.BackgroundColor3 = Color3.fromRGB(120,0,220)
     label.Parent = parent
 
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Size = UDim2.new(0,50,0,20)
+    valueLabel.Position = UDim2.new(0,60,0,posY)
+    valueLabel.Text = tostring(getValue())
+    valueLabel.TextColor3 = Color3.new(1,1,1)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.Parent = parent
+
     local minusBtn = Instance.new("TextButton")
     minusBtn.Size = UDim2.new(0,20,0,20)
-    minusBtn.Position = UDim2.new(0,70,0,posY)
+    minusBtn.Position = UDim2.new(0,120,0,posY)
     minusBtn.Text = "-"
     minusBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
     minusBtn.TextColor3 = Color3.new(1,1,1)
@@ -191,11 +195,19 @@ local function createStatControl(parent,name,posY,callback)
 
     local plusBtn = Instance.new("TextButton")
     plusBtn.Size = UDim2.new(0,20,0,20)
-    plusBtn.Position = UDim2.new(0,100,0,posY)
+    plusBtn.Position = UDim2.new(0,150,0,posY)
     plusBtn.Text = "+"
     plusBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
     plusBtn.TextColor3 = Color3.new(1,1,1)
     plusBtn.Parent = parent
+
+    local resetBtn = Instance.new("TextButton")
+    resetBtn.Size = UDim2.new(0,40,0,20)
+    resetBtn.Position = UDim2.new(0,180,0,posY)
+    resetBtn.Text = "Reset"
+    resetBtn.BackgroundColor3 = Color3.fromRGB(200,0,0)
+    resetBtn.TextColor3 = Color3.new(1,1,1)
+    resetBtn.Parent = parent
 
     local holdingMinus=false
     local holdingPlus=false
@@ -204,25 +216,37 @@ local function createStatControl(parent,name,posY,callback)
     plusBtn.MouseButton1Down:Connect(function() holdingPlus=true end)
     plusBtn.MouseButton1Up:Connect(function() holdingPlus=false end)
 
+    resetBtn.MouseButton1Click:Connect(function()
+        setValue(default)
+        valueLabel.Text = tostring(default)
+    end)
+
     RunService.RenderStepped:Connect(function()
-        if holdingMinus then callback(-2) end
-        if holdingPlus then callback(2) end
+        if holdingMinus then
+            setValue(getValue()-2)
+            valueLabel.Text = tostring(getValue())
+        elseif holdingPlus then
+            setValue(getValue()+2)
+            valueLabel.Text = tostring(getValue())
+        end
     end)
 end
 
-createStatControl(movementFrame,"Speed",20,function(delta)
-    currentSpeed = math.max(0,currentSpeed+delta)
-    remote:FireServer("WalkSpeed",currentSpeed)
-end)
+-- Speed Control
+createStatControl(movementFrame,"Speed",20,
+    function() return currentSpeed end,
+    function(v) currentSpeed=v humanoid.WalkSpeed=v remote:FireServer("WalkSpeed",v) end,
+    defaultSpeed)
 
-createStatControl(movementFrame,"Jump",60,function(delta)
-    currentJump = math.max(0,currentJump+delta)
-    remote:FireServer("JumpPower",currentJump)
-end)
+-- Jump Control
+createStatControl(movementFrame,"Jump",60,
+    function() return currentJump end,
+    function(v) currentJump=v humanoid.JumpPower=v remote:FireServer("JumpPower",v) end,
+    defaultJump)
 
 -- InfJump toggle
 local infBtn = Instance.new("TextButton")
-infBtn.Size = UDim2.new(0,80,0,30)
+infBtn.Size = UDim2.new(0,100,0,30)
 infBtn.Position = UDim2.new(0,10,0,100)
 infBtn.Text = "InfJump: ✖"
 infBtn.BackgroundColor3 = Color3.fromRGB(120,0,220)
@@ -241,8 +265,8 @@ end)
 
 -- NoClip toggle
 local noclipBtn = Instance.new("TextButton")
-noclipBtn.Size = UDim2.new(0,80,0,30)
-noclipBtn.Position = UDim2.new(0,100,0,100)
+noclipBtn.Size = UDim2.new(0,100,0,30)
+noclipBtn.Position = UDim2.new(0,120,0,100)
 noclipBtn.Text = "NoClip: ✖"
 noclipBtn.BackgroundColor3 = Color3.fromRGB(120,0,220)
 noclipBtn.TextColor3 = Color3.new(1,1,1)
@@ -260,7 +284,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ======= Players Tab =======
--- Scrollable player list with head display, highlight, teleport, etc.
+-- Scrollable list
 local playerList = Instance.new("ScrollingFrame")
 playerList.Size = UDim2.new(1,-20,1,-20)
 playerList.Position = UDim2.new(0,10,0,10)
@@ -280,11 +304,12 @@ local function createPlayerEntry(plr)
     entry.BackgroundColor3 = Color3.fromRGB(120,0,220)
     entry.Parent = playerList
 
-    -- Head
+    -- Circular Head Display
     local viewport = Instance.new("ViewportFrame")
     viewport.Size = UDim2.new(0,50,0,50)
     viewport.Position = UDim2.new(0,5,0,5)
     viewport.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    viewport.ClipsDescendants = true
     viewport.Parent = entry
     local cam = Instance.new("Camera")
     cam.Parent = viewport
@@ -327,8 +352,80 @@ local function createPlayerEntry(plr)
     healthBar.BackgroundColor3 = Color3.fromRGB(255,0,0)
     healthBar.Parent = entry
 
-    -- Highlight & Teleport handled same as previous full script...
-    -- (Omitted here for brevity, same as previous section)
+    -- Highlight Toggle
+    local highlightBtn = Instance.new("TextButton")
+    highlightBtn.Size = UDim2.new(0,60,0,20)
+    highlightBtn.Position = UDim2.new(0,60,0,65)
+    highlightBtn.Text = "Highlight"
+    highlightBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    highlightBtn.TextColor3 = Color3.new(1,1,1)
+    highlightBtn.Parent = entry
+
+    local colorBtn = Instance.new("TextButton")
+    colorBtn.Size = UDim2.new(0,40,0,20)
+    colorBtn.Position = UDim2.new(0,125,0,65)
+    colorBtn.Text = "Red"
+    colorBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    colorBtn.TextColor3 = Color3.new(1,1,1)
+    colorBtn.Parent = entry
+
+    local highlightObj
+    local highlightColor = Color3.fromRGB(255,0,0)
+
+    highlightBtn.MouseButton1Click:Connect(function()
+        if highlightObj then
+            highlightObj:Destroy()
+            highlights[plr]=nil
+        else
+            highlightObj = Instance.new("Highlight")
+            highlightObj.Adornee = plr.Character
+            highlightObj.FillColor = highlightColor
+            highlightObj.OutlineColor = Color3.new(1,1,1)
+            highlightObj.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlightObj.Parent = workspace
+            highlights[plr]=highlightObj
+        end
+    end)
+
+    colorBtn.MouseButton1Click:Connect(function()
+        if highlightColor == Color3.fromRGB(255,0,0) then
+            highlightColor = Color3.fromRGB(0,255,0)
+            colorBtn.Text = "Green"
+            colorBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+        elseif highlightColor == Color3.fromRGB(0,255,0) then
+            highlightColor = Color3.fromRGB(0,0,255)
+            colorBtn.Text = "Blue"
+            colorBtn.BackgroundColor3 = Color3.fromRGB(0,0,150)
+        else
+            highlightColor = Color3.fromRGB(255,0,0)
+            colorBtn.Text = "Red"
+            colorBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+        end
+        if highlightObj then highlightObj.FillColor = highlightColor end
+    end)
+
+    -- Teleport
+    local tpBtn = Instance.new("TextButton")
+    tpBtn.Size = UDim2.new(0,80,0,20)
+    tpBtn.Position = UDim2.new(0,60,0,90)
+    tpBtn.Text = "Teleport"
+    tpBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    tpBtn.TextColor3 = Color3.new(1,1,1)
+    tpBtn.Parent = entry
+
+    tpBtn.MouseButton1Click:Connect(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") 
+            and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = plr.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
+        end
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            healthBar.Size = UDim2.new(hum.Health/hum.MaxHealth,0,0,10)
+        end
+    end)
 end
 
 local function updatePlayerList()
@@ -340,6 +437,7 @@ local function updatePlayerList()
     end
     playerList.CanvasSize = UDim2.new(0,0,0,listLayout.AbsoluteContentSize + 10)
 end
+
 Players.PlayerAdded:Connect(updatePlayerList)
 Players.PlayerRemoving:Connect(updatePlayerList)
 updatePlayerList()
@@ -382,7 +480,6 @@ end
 createTransButton("-",10)
 createTransButton("+",40)
 
--- Unload Panel
 local unloadBtn = Instance.new("TextButton")
 unloadBtn.Size = UDim2.new(0,100,0,30)
 unloadBtn.Position = UDim2.new(0,10,0,90)
@@ -390,7 +487,6 @@ unloadBtn.Text = "Unload Panel"
 unloadBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
 unloadBtn.TextColor3 = Color3.new(1,1,1)
 unloadBtn.Parent = settingsFrame
-
 unloadBtn.MouseButton1Click:Connect(function()
     panel:Destroy()
 end)
