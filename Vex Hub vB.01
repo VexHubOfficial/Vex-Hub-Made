@@ -1,0 +1,457 @@
+-- Vex Hub 
+-- By Vex Dev & Creator
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- Ensure RemoteEvent exists
+local remote = ReplicatedStorage:FindFirstChild("AdminUpdateStats")
+if not remote then
+    remote = Instance.new("RemoteEvent")
+    remote.Name = "AdminUpdateStats"
+    remote.Parent = ReplicatedStorage
+end
+
+-- ======= ScreenGui =======
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "VexHubGUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- ======= Toggle Button =======
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0,100,0,30)
+toggleButton.Position = UDim2.new(0,20,0,100)
+toggleButton.Text = "Vex Hub"
+toggleButton.BackgroundColor3 = Color3.fromRGB(152,3,252)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Parent = screenGui
+toggleButton.Active = true
+toggleButton.Draggable = true
+
+-- ======= Main Panel =======
+local panel = Instance.new("Frame")
+panel.Size = UDim2.new(0,500,0,400)
+panel.Position = UDim2.new(0,150,0,100)
+panel.BackgroundColor3 = Color3.fromRGB(152,3,252)
+panel.BackgroundTransparency = 0.5 -- default 50%
+panel.Parent = screenGui
+
+panel.Active = true
+panel.Draggable = false -- Only header draggable
+
+-- Panel visibility toggle
+toggleButton.MouseButton1Click:Connect(function()
+    panel.Visible = not panel.Visible
+end)
+
+-- ======= Header =======
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1,0,0,40)
+header.Position = UDim2.new(0,0,0,0)
+header.BackgroundColor3 = Color3.fromRGB(120,0,220)
+header.Parent = panel
+header.Active = true
+header.Draggable = true
+
+local headerText = Instance.new("TextLabel")
+headerText.Size = UDim2.new(1,-60,0,20)
+headerText.Position = UDim2.new(0,10,0,5)
+headerText.Text = "Welcome "..player.DisplayName.." to Vex Hub!"
+headerText.TextColor3 = Color3.new(1,1,1)
+headerText.BackgroundTransparency = 1
+headerText.TextScaled = true
+headerText.TextXAlignment = Enum.TextXAlignment.Left
+headerText.Parent = header
+
+local headerCredits = Instance.new("TextLabel")
+headerCredits.Size = UDim2.new(0,50,0,15)
+headerCredits.Position = UDim2.new(1,-55,0,20)
+headerCredits.Text = "By Vex"
+headerCredits.TextColor3 = Color3.new(1,1,1)
+headerCredits.BackgroundTransparency = 1
+headerCredits.TextScaled = true
+headerCredits.Parent = header
+
+-- ======= Tab Buttons =======
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1,0,0,30)
+tabBar.Position = UDim2.new(0,0,0,40)
+tabBar.BackgroundColor3 = Color3.fromRGB(120,0,220)
+tabBar.Parent = panel
+
+local function createTabButton(text,posX)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.33,0,1,0)
+    btn.Position = UDim2.new(posX,0,0,0)
+    btn.Text = text
+    btn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Parent = tabBar
+    return btn
+end
+
+local movementTabBtn = createTabButton("Movement",0)
+local playersTabBtn = createTabButton("Players",0.33)
+local settingsTabBtn = createTabButton("Settings",0.66)
+
+-- ======= Content Frames =======
+local function createContentFrame()
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1,0,1,-70)
+    f.Position = UDim2.new(0,0,0,70)
+    f.BackgroundColor3 = Color3.fromRGB(152,3,252)
+    f.BackgroundTransparency = 0.5
+    f.Parent = panel
+    return f
+end
+
+local movementFrame = createContentFrame()
+local playersFrame = createContentFrame()
+playersFrame.Visible = false
+local settingsFrame = createContentFrame()
+settingsFrame.Visible = false
+
+-- ======= Active Tab Highlight =======
+local function highlightTab(active)
+    for _,btn in pairs({movementTabBtn,playersTabBtn,settingsTabBtn}) do
+        if btn == active then
+            btn.BackgroundColor3 = Color3.fromRGB(180,0,240)
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+        end
+    end
+end
+
+-- Tab switching
+movementTabBtn.MouseButton1Click:Connect(function()
+    movementFrame.Visible = true
+    playersFrame.Visible = false
+    settingsFrame.Visible = false
+    highlightTab(movementTabBtn)
+end)
+
+playersTabBtn.MouseButton1Click:Connect(function()
+    movementFrame.Visible = false
+    playersFrame.Visible = true
+    settingsFrame.Visible = false
+    highlightTab(playersTabBtn)
+end)
+
+settingsTabBtn.MouseButton1Click:Connect(function()
+    movementFrame.Visible = false
+    playersFrame.Visible = false
+    settingsFrame.Visible = true
+    highlightTab(settingsTabBtn)
+end)
+
+-- ======= Movement Tab =======
+local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+local currentSpeed = humanoid and humanoid.WalkSpeed or 16
+local currentJump = humanoid and humanoid.JumpPower or 50
+local infEnabled = false
+local noclipEnabled = false
+
+local function createStatControl(parent,name,posY,initial,callback)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0,50,0,20)
+    label.Position = UDim2.new(0,10,0,posY)
+    label.Text = name
+    label.TextColor3 = Color3.new(1,1,1)
+    label.BackgroundColor3 = Color3.fromRGB(120,0,220)
+    label.Parent = parent
+
+    local minusBtn = Instance.new("TextButton")
+    minusBtn.Size = UDim2.new(0,20,0,20)
+    minusBtn.Position = UDim2.new(0,70,0,posY)
+    minusBtn.Text = "-"
+    minusBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    minusBtn.TextColor3 = Color3.new(1,1,1)
+    minusBtn.Parent = parent
+
+    local plusBtn = Instance.new("TextButton")
+    plusBtn.Size = UDim2.new(0,20,0,20)
+    plusBtn.Position = UDim2.new(0,100,0,posY)
+    plusBtn.Text = "+"
+    plusBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    plusBtn.TextColor3 = Color3.new(1,1,1)
+    plusBtn.Parent = parent
+
+    local holdingMinus = false
+    local holdingPlus = false
+
+    minusBtn.MouseButton1Down:Connect(function() holdingMinus=true end)
+    minusBtn.MouseButton1Up:Connect(function() holdingMinus=false end)
+    plusBtn.MouseButton1Down:Connect(function() holdingPlus=true end)
+    plusBtn.MouseButton1Up:Connect(function() holdingPlus=false end)
+
+    RunService.RenderStepped:Connect(function()
+        if holdingMinus then callback(-2) end
+        if holdingPlus then callback(2) end
+    end)
+end
+
+-- Speed
+createStatControl(movementFrame,"Speed",20,currentSpeed,function(delta)
+    currentSpeed = math.max(0,currentSpeed+delta)
+    remote:FireServer("WalkSpeed",currentSpeed)
+end)
+
+-- Jump
+createStatControl(movementFrame,"Jump",60,currentJump,function(delta)
+    currentJump = math.max(0,currentJump+delta)
+    remote:FireServer("JumpPower",currentJump)
+end)
+
+-- InfJump toggle
+local infBtn = Instance.new("TextButton")
+infBtn.Size = UDim2.new(0,80,0,30)
+infBtn.Position = UDim2.new(0,10,0,100)
+infBtn.Text = "InfJump: ✖"
+infBtn.BackgroundColor3 = Color3.fromRGB(120,0,220)
+infBtn.TextColor3 = Color3.new(1,1,1)
+infBtn.Parent = movementFrame
+infBtn.MouseButton1Click:Connect(function()
+    infEnabled = not infEnabled
+    infBtn.Text = "InfJump: "..(infEnabled and "✔" or "✖")
+end)
+UIS.JumpRequest:Connect(function()
+    if infEnabled and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState("Jumping") end
+    end
+end)
+
+-- NoClip toggle
+local noclipBtn = Instance.new("TextButton")
+noclipBtn.Size = UDim2.new(0,80,0,30)
+noclipBtn.Position = UDim2.new(0,100,0,100)
+noclipBtn.Text = "NoClip: ✖"
+noclipBtn.BackgroundColor3 = Color3.fromRGB(120,0,220)
+noclipBtn.TextColor3 = Color3.new(1,1,1)
+noclipBtn.Parent = movementFrame
+noclipBtn.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    noclipBtn.Text = "NoClip: "..(noclipEnabled and "✔" or "✖")
+end)
+RunService.Stepped:Connect(function()
+    if noclipEnabled and player.Character then
+        for _,p in pairs(player.Character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide=false end
+        end
+    end
+end)
+
+-- ======= Players Tab =======
+local playerList = Instance.new("ScrollingFrame")
+playerList.Size = UDim2.new(1,-20,1,-20)
+playerList.Position = UDim2.new(0,10,0,10)
+playerList.ScrollBarThickness = 10
+playerList.BackgroundColor3 = Color3.fromRGB(152,3,252)
+playerList.Parent = playersFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0,5)
+listLayout.Parent = playerList
+
+local highlights = {}
+
+local function createPlayerEntry(plr)
+    local entry = Instance.new("Frame")
+    entry.Size = UDim2.new(1,0,0,100)
+    entry.BackgroundColor3 = Color3.fromRGB(120,0,220)
+    entry.Parent = playerList
+
+    -- Head
+    local viewport = Instance.new("ViewportFrame")
+    viewport.Size = UDim2.new(0,50,0,50)
+    viewport.Position = UDim2.new(0,5,0,5)
+    viewport.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    viewport.Parent = entry
+    local cam = Instance.new("Camera")
+    cam.Parent = viewport
+    viewport.CurrentCamera = cam
+
+    if plr.Character and plr.Character:FindFirstChild("Head") then
+        local headClone = plr.Character.Head:Clone()
+        headClone.Anchored=true
+        headClone.CanCollide=false
+        headClone.Size=Vector3.new(2,2,2)
+        headClone.Position=Vector3.new(0,0,0)
+        headClone.Parent=viewport
+        cam.CFrame=CFrame.new(Vector3.new(0,0,5),Vector3.new(0,0,0))
+    end
+
+    -- DisplayName
+    local displayLabel = Instance.new("TextLabel")
+    displayLabel.Size = UDim2.new(0,120,0,20)
+    displayLabel.Position = UDim2.new(0,60,0,5)
+    displayLabel.Text = plr.DisplayName
+    displayLabel.TextColor3 = Color3.new(1,1,1)
+    displayLabel.BackgroundTransparency = 1
+    displayLabel.TextXAlignment = Enum.TextXAlignment.Left
+    displayLabel.Parent = entry
+
+    -- Username
+    local usernameLabel = Instance.new("TextLabel")
+    usernameLabel.Size = UDim2.new(0,120,0,15)
+    usernameLabel.Position = UDim2.new(0,60,0,25)
+    usernameLabel.Text = plr.Name
+    usernameLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    usernameLabel.BackgroundTransparency = 1
+    usernameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    usernameLabel.TextSize = 12
+    usernameLabel.Parent = entry
+
+    -- Health bar
+    local healthBar = Instance.new("Frame")
+    healthBar.Size = UDim2.new(0,100,0,10)
+    healthBar.Position = UDim2.new(0,60,0,50)
+    healthBar.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    healthBar.Parent = entry
+
+    -- Highlight toggle
+    local highlightBtn = Instance.new("TextButton")
+    highlightBtn.Size = UDim2.new(0,40,0,20)
+    highlightBtn.Position = UDim2.new(0,60,0,65)
+    highlightBtn.Text = "Highlight"
+    highlightBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    highlightBtn.TextColor3 = Color3.new(1,1,1)
+    highlightBtn.Parent = entry
+
+    local colorBtn = Instance.new("TextButton")
+    colorBtn.Size = UDim2.new(0,40,0,20)
+    colorBtn.Position = UDim2.new(0,110,0,65)
+    colorBtn.Text = "Red"
+    colorBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    colorBtn.TextColor3 = Color3.new(1,1,1)
+    colorBtn.Parent = entry
+
+    local highlightObj
+    local highlightColor = Color3.fromRGB(255,0,0)
+
+    highlightBtn.MouseButton1Click:Connect(function()
+        if highlightObj then
+            highlightObj:Destroy()
+            highlights[plr]=nil
+        else
+            highlightObj = Instance.new("Highlight")
+            highlightObj.Adornee = plr.Character
+            highlightObj.FillColor = highlightColor
+            highlightObj.OutlineColor = Color3.new(1,1,1)
+            highlightObj.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlightObj.Parent = workspace
+            highlights[plr]=highlightObj
+        end
+    end)
+
+    colorBtn.MouseButton1Click:Connect(function()
+        if highlightColor == Color3.fromRGB(255,0,0) then
+            highlightColor = Color3.fromRGB(0,255,0)
+            colorBtn.Text = "Green"
+            colorBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+        elseif highlightColor == Color3.fromRGB(0,255,0) then
+            highlightColor = Color3.fromRGB(0,0,255)
+            colorBtn.Text = "Blue"
+            colorBtn.BackgroundColor3 = Color3.fromRGB(0,0,150)
+        else
+            highlightColor = Color3.fromRGB(255,0,0)
+            colorBtn.Text = "Red"
+            colorBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+        end
+        if highlightObj then highlightObj.FillColor = highlightColor end
+    end)
+
+    -- Teleport
+    local tpBtn = Instance.new("TextButton")
+    tpBtn.Size = UDim2.new(0,80,0,20)
+    tpBtn.Position = UDim2.new(0,60,0,90)
+    tpBtn.Text = "Teleport"
+    tpBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    tpBtn.TextColor3 = Color3.new(1,1,1)
+    tpBtn.Parent = entry
+
+    tpBtn.MouseButton1Click:Connect(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") 
+            and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = plr.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
+        end
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            healthBar.Size = UDim2.new(hum.Health/hum.MaxHealth,0,0,10)
+        end
+    end)
+end
+
+local function updatePlayerList()
+    playerList:ClearAllChildren()
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= player then
+            createPlayerEntry(plr)
+        end
+    end
+    playerList.CanvasSize = UDim2.new(0,0,0,listLayout.AbsoluteContentSize + 10)
+end
+
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+updatePlayerList()
+
+-- ======= Settings Tab =======
+local transparency = 0.5
+local function applyTransparency()
+    panel.BackgroundTransparency = transparency
+    for _,child in pairs(panel:GetChildren()) do
+        if child:IsA("Frame") and child ~= header then
+            child.BackgroundTransparency = transparency
+        end
+    end
+end
+
+local transLabel = Instance.new("TextLabel")
+transLabel.Size = UDim2.new(0,80,0,20)
+transLabel.Position = UDim2.new(0,10,0,20)
+transLabel.Text = "Transparency"
+transLabel.TextColor3 = Color3.new(1,1,1)
+transLabel.BackgroundColor3 = Color3.fromRGB(120,0,220)
+transLabel.Parent = settingsFrame
+
+local function createTransButton(sign,posX)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,20,0,20)
+    btn.Position = UDim2.new(0,posX,0,50)
+    btn.Text = sign
+    btn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Parent = settingsFrame
+    local holding=false
+    btn.MouseButton1Down:Connect(function() holding=true end)
+    btn.MouseButton1Up:Connect(function() holding=false end)
+    RunService.RenderStepped:Connect(function()
+        if holding then
+            transparency = math.clamp(transparency + (sign=="+" and 0.02 or -0.02),0,1)
+            applyTransparency()
+        end
+    end)
+end
+
+createTransButton("-",10)
+createTransButton("+",40)
+
+-- Unload Panel
+local unloadBtn = Instance.new("TextButton")
+unloadBtn.Size = UDim2.new(0,100,0,30)
+unloadBtn.Position = UDim2.new(0,10,0,90)
+unloadBtn.Text = "Unload Panel"
+unloadBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+unloadBtn.TextColor3 = Color3.new(1,1,1)
+unloadBtn.Parent = settingsFrame
+
+unloadBtn.MouseButton1Click:Connect(function()
+    panel:Destroy()
+end)
