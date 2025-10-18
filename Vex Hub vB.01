@@ -1,6 +1,5 @@
 -- Vex Hub
 -- By Vex Dev & Creator
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
@@ -33,11 +32,16 @@ toggleButton.Draggable = true
 
 -- ======= Main Panel =======
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0,600,0,400)
-panel.Position = UDim2.new(0.5,-300,0.5,-200) -- centered
+panel.Size = UDim2.new(0,600,0,300)
+panel.Position = UDim2.new(0.5,-300,0.5,-150) -- centered
 panel.BackgroundColor3 = Color3.fromRGB(152,3,252)
 panel.BackgroundTransparency = 0.5
 panel.Parent = screenGui
+
+-- Panel toggle
+toggleButton.MouseButton1Click:Connect(function()
+    panel.Visible = not panel.Visible
+end)
 
 -- ======= Header =======
 local header = Instance.new("Frame")
@@ -77,7 +81,7 @@ tabHeader.Parent = panel
 
 -- ======= Left Column: Info Bar + Tabs Column =======
 local leftPanel = Instance.new("Frame")
-leftPanel.Size = UDim2.new(0,150,1,-60) -- subtract header + tab header
+leftPanel.Size = UDim2.new(0,150,1,-60)
 leftPanel.Position = UDim2.new(0,0,0,60)
 leftPanel.BackgroundColor3 = Color3.fromRGB(130,0,230)
 leftPanel.BackgroundTransparency = 0.5
@@ -85,7 +89,7 @@ leftPanel.Parent = panel
 
 -- Info Bar (far left)
 local infoBar = Instance.new("Frame")
-infoBar.Size = UDim2.new(0,40,1,0) -- narrow vertical
+infoBar.Size = UDim2.new(0,40,1,0)
 infoBar.Position = UDim2.new(0,0,0,0)
 infoBar.BackgroundColor3 = Color3.fromRGB(100,0,200)
 infoBar.Parent = leftPanel
@@ -94,7 +98,7 @@ infoBar.Parent = leftPanel
 local pfpSize = 40
 local pfpFrame = Instance.new("Frame")
 pfpFrame.Size = UDim2.new(0,pfpSize,0,pfpSize)
-pfpFrame.Position = UDim2.new(0,0,1,-pfpSize) -- bottom of infoBar
+pfpFrame.Position = UDim2.new(0,0,1,-pfpSize)
 pfpFrame.BackgroundTransparency = 1
 pfpFrame.Parent = infoBar
 
@@ -106,18 +110,14 @@ pfpImage.Image = "rbxthumb://type=AvatarHeadShot&id="..player.UserId.."&w=420&h=
 pfpImage.Parent = pfpFrame
 pfpImage.ClipsDescendants = true
 pfpImage.ScaleType = Enum.ScaleType.Crop
-pfpImage.BackgroundColor3 = Color3.new(0,0,0)
-pfpImage.BorderSizePixel = 0
-pfpImage.Rotation = 0
 
--- Make circular mask
 local uicorner = Instance.new("UICorner")
 uicorner.CornerRadius = UDim.new(0.5,0)
 uicorner.Parent = pfpImage
 
--- Tabs Column (next to Info Bar)
+-- Tabs Column
 local tabsColumn = Instance.new("Frame")
-tabsColumn.Size = UDim2.new(1,-40,1,0) -- remaining width of leftPanel
+tabsColumn.Size = UDim2.new(1,-40,1,0)
 tabsColumn.Position = UDim2.new(0,40,0,0)
 tabsColumn.BackgroundTransparency = 1
 tabsColumn.Parent = leftPanel
@@ -145,7 +145,6 @@ contentArea.BackgroundColor3 = Color3.fromRGB(152,3,252)
 contentArea.BackgroundTransparency = 0.5
 contentArea.Parent = panel
 
--- Movement / Players / Settings frames
 local function createContentFrame()
     local f = Instance.new("Frame")
     f.Size = UDim2.new(1,0,1,0)
@@ -193,7 +192,7 @@ end)
 -- ======= Initial Tab =======
 switchTab(movementTabBtn,movementFrame,"Movement")
 
--- ======= Movement Tab Example (WalkSpeed/JumpPower with reset buttons) =======
+-- ======= Movement Tab Example (WalkSpeed/JumpPower) =======
 local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 local defaultSpeed = 16
 local defaultJump = 50
@@ -276,3 +275,164 @@ createStatControl(movementFrame,"Jump",60,
     function() return currentJump end,
     function(v) currentJump=v humanoid.JumpPower=v remote:FireServer("JumpPower",v) end,
     defaultJump)
+
+-- Players Tab Implementation
+
+local playerList = Instance.new("ScrollingFrame")
+playerList.Size = UDim2.new(1,-20,1,-20)
+playerList.Position = UDim2.new(0,10,0,10)
+playerList.CanvasSize = UDim2.new(0,0,0,0)
+playerList.ScrollBarThickness = 10
+playerList.BackgroundTransparency = 1
+playerList.Parent = playersFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0,5)
+listLayout.Parent = playerList
+
+local highlights = {} -- store Highlight objects per player
+
+local function createPlayerEntry(plr)
+    local entry = Instance.new("Frame")
+    entry.Size = UDim2.new(1,0,0,120)
+    entry.BackgroundColor3 = Color3.fromRGB(120,0,220)
+    entry.Parent = playerList
+
+    -- Circular PFP / head display
+    local pfp = Instance.new("ImageLabel")
+    pfp.Size = UDim2.new(0,50,0,50)
+    pfp.Position = UDim2.new(0,5,0,5)
+    pfp.BackgroundTransparency = 1
+    pfp.Image = "rbxthumb://type=AvatarHeadShot&id="..plr.UserId.."&w=420&h=420"
+    pfp.Parent = entry
+    local uicorner = Instance.new("UICorner")
+    uicorner.CornerRadius = UDim.new(0.5,0)
+    uicorner.Parent = pfp
+
+    -- DisplayName and Username
+    local displayLabel = Instance.new("TextLabel")
+    displayLabel.Size = UDim2.new(0,120,0,20)
+    displayLabel.Position = UDim2.new(0,60,0,5)
+    displayLabel.Text = plr.DisplayName
+    displayLabel.TextColor3 = Color3.new(1,1,1)
+    displayLabel.BackgroundTransparency = 1
+    displayLabel.TextXAlignment = Enum.TextXAlignment.Left
+    displayLabel.Parent = entry
+
+    local usernameLabel = Instance.new("TextLabel")
+    usernameLabel.Size = UDim2.new(0,120,0,15)
+    usernameLabel.Position = UDim2.new(0,60,0,25)
+    usernameLabel.Text = plr.Name
+    usernameLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    usernameLabel.TextSize = 12
+    usernameLabel.BackgroundTransparency = 1
+    usernameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    usernameLabel.Parent = entry
+
+    -- Teleport button
+    local tpBtn = Instance.new("TextButton")
+    tpBtn.Size = UDim2.new(0,70,0,20)
+    tpBtn.Position = UDim2.new(0,60,0,45)
+    tpBtn.Text = "Teleport"
+    tpBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    tpBtn.TextColor3 = Color3.new(1,1,1)
+    tpBtn.Parent = entry
+    tpBtn.MouseButton1Click:Connect(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") 
+           and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = plr.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
+        end
+    end)
+
+    -- ESP toggle
+    local espBtn = Instance.new("TextButton")
+    espBtn.Size = UDim2.new(0,40,0,20)
+    espBtn.Position = UDim2.new(0,140,0,45)
+    espBtn.Text = "ESP"
+    espBtn.BackgroundColor3 = Color3.fromRGB(100,0,200)
+    espBtn.TextColor3 = Color3.new(1,1,1)
+    espBtn.Parent = entry
+    local espEnabled = false
+    espBtn.MouseButton1Click:Connect(function()
+        espEnabled = not espEnabled
+        espBtn.Text = espEnabled and "✔" or "ESP"
+    end)
+
+    -- Highlight color buttons
+    local colors = {
+        {Name="Red", Color=Color3.fromRGB(255,0,0)},
+        {Name="Green", Color=Color3.fromRGB(0,255,0)},
+        {Name="Blue", Color=Color3.fromRGB(0,0,255)}
+    }
+
+    local activeColorIndex = nil
+    local indicatorLabels = {}
+
+    for i, c in ipairs(colors) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0,40,0,20)
+        btn.Position = UDim2.new(0,60+(i-1)*50,0,70)
+        btn.Text = c.Name
+        btn.BackgroundColor3 = c.Color
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Parent = entry
+
+        local indicator = Instance.new("TextLabel")
+        indicator.Size = UDim2.new(0,40,0,15)
+        indicator.Position = UDim2.new(0,60+(i-1)*50,0,95)
+        indicator.Text = "x"
+        indicator.TextColor3 = Color3.new(1,1,1)
+        indicator.BackgroundTransparency = 1
+        indicator.Parent = entry
+        indicatorLabels[i] = indicator
+
+        btn.MouseButton1Click:Connect(function()
+            -- Remove previous highlight
+            if highlights[plr] then highlights[plr]:Destroy() end
+            -- Create new highlight
+            local h = Instance.new("Highlight")
+            h.Adornee = plr.Character
+            h.FillColor = c.Color
+            h.OutlineColor = Color3.new(1,1,1)
+            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            h.Parent = workspace
+            highlights[plr] = h
+
+            -- Update indicators
+            for j, ind in ipairs(indicatorLabels) do
+                ind.Text = (j==i) and "✔" or "x"
+            end
+        end)
+    end
+
+    -- Live HP bar
+    local healthBar = Instance.new("Frame")
+    healthBar.Size = UDim2.new(0,50,0,5)
+    healthBar.Position = UDim2.new(0,5,0,60)
+    healthBar.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    healthBar.Parent = entry
+
+    RunService.RenderStepped:Connect(function()
+        if plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            healthBar.Size = UDim2.new(math.clamp(hum.Health/hum.MaxHealth,0,1),0,0,5)
+        end
+    end)
+end
+
+-- Update player list
+local function updatePlayerList()
+    for _,child in pairs(playerList:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= player then
+            createPlayerEntry(plr)
+        end
+    end
+    playerList.CanvasSize = UDim2.new(0,0,0,listLayout.AbsoluteContentSize + 10)
+end
+
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+updatePlayerList()
